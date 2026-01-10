@@ -3,116 +3,135 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Depo QR Okuyucu</title>
+<title>Depo QR Okuyucu Pro</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
 body {
-  font-family: Arial, sans-serif;
-  background: #f8fafc;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f2f5;
   padding: 15px;
   text-align: center;
+  color: #333;
 }
 
 #reader {
-  max-width: 360px;
-  margin: auto;
+  max-width: 400px;
+  margin: 20px auto;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  background: white;
 }
 
 #urun {
   display: none;
   background: #fff;
-  margin-top: 20px;
-  padding: 15px;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0,0,0,.1);
+  margin: 20px auto;
+  max-width: 400px;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  text-align: left;
 }
 
 .row {
   display: flex;
   justify-content: space-between;
-  padding: 6px 0;
-  border-bottom: 1px solid #eee;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.row b {
-  color: #555;
-}
+.row:last-child { border-bottom: none; }
+
+.row b { color: #666; font-size: 0.9em; text-transform: uppercase; }
+.row span { color: #000; font-weight: 600; }
 
 #feedback {
-  margin-top: 10px;
+  margin-top: 15px;
+  padding: 10px;
+  border-radius: 5px;
   font-weight: bold;
 }
+
+.status-ok { color: #2ecc71; background: #e8f8f0; }
+.status-err { color: #e74c3c; background: #fdeaea; }
 </style>
 </head>
 <body>
 
-<h2>📦 Depo QR Okuyucu</h2>
+<h2>📦 Depo Stok Kontrol</h2>
+<p style="color: #666;">QR veya Barkodu kameraya yaklaştırın</p>
 
 <div id="reader"></div>
 <div id="feedback"></div>
 
 <div id="urun">
-  <div class="row"><b>Marka</b><span id="marka"></span></div>
+  <div class="row"><b>Ürün / Marka</b><span id="marka"></span></div>
   <div class="row"><b>Renk</b><span id="renk"></span></div>
   <div class="row"><b>Beden</b><span id="beden"></span></div>
-  <div class="row"><b>Raf</b><span id="raf"></span></div>
-  <div class="row"><b>Stok</b><span id="stok"></span></div>
+  <div class="row"><b>Raf Konumu</b><span id="raf"></span></div>
+  <div class="row"><b>Stok Adedi</b><span id="stok"></span></div>
+  <button onclick="location.reload()" style="width:100%; margin-top:15px; padding:10px; background:#3498db; color:white; border:none; border-radius:5px; cursor:pointer;">Yeni Tarama Yap</button>
 </div>
 
 <script>
 const html5QrCode = new Html5Qrcode("reader");
+const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
+// Kamerayı Başlat
 html5QrCode.start(
-  { facingMode: "environment" },
-  { fps: 10, qrbox: 220 },
+  { facingMode: "environment" }, 
+  config,
   onScanSuccess
-);
+).catch(err => {
+  document.getElementById("feedback").innerText = "Kamera başlatılamadı: " + err;
+  document.getElementById("feedback").className = "status-err";
+});
 
 function onScanSuccess(decodedText) {
-  console.log("QR OKUNAN VERİ:", decodedText);
-
-  let urun;
-
-  // 🔹 JSON mu kontrol et
-  if (decodedText.trim().startsWith("{")) {
-    try {
-      urun = JSON.parse(decodedText);
-    } catch (e) {
-      hataGoster("❌ QR bozuk (JSON okunamadı)");
-      return;
-    }
-  } else {
-    hataGoster("❌ Bu QR stok etiketi değil");
-    return;
-  }
-
-  // 🔹 Gerekli alanlar var mı?
-  if (!urun.marka || !urun.renk || !urun.raf) {
-    hataGoster("❌ QR eksik veri içeriyor");
-    return;
-  }
-
-  // 🔹 Ekrana bas
-  document.getElementById("feedback").innerText = "";
-  document.getElementById("feedback").style.color = "green";
-
-  document.getElementById("marka").innerText = urun.marka;
-  document.getElementById("renk").innerText = urun.renk;
-  document.getElementById("beden").innerText = urun.beden || "-";
-  document.getElementById("raf").innerText = urun.raf;
-  document.getElementById("stok").innerText = urun.stok ?? "-";
-
-  document.getElementById("urun").style.display = "block";
-
+  console.log("Okunan Veri:", decodedText);
+  
+  // Başarı bildirimi ve titreşim
   if (navigator.vibrate) navigator.vibrate(100);
-}
+  
+  let urunData;
+  let feedbackBox = document.getElementById("feedback");
+  
+  try {
+    // JSON formatında mı kontrol et
+    if (decodedText.startsWith("{")) {
+      urunData = JSON.parse(decodedText);
+      
+      document.getElementById("marka").innerText = urunData.marka || "-";
+      document.getElementById("renk").innerText = urunData.renk || "-";
+      document.getElementById("beden").innerText = urunData.beden || "-";
+      document.getElementById("raf").innerText = urunData.raf || "-";
+      document.getElementById("stok").innerText = urunData.stok || "0";
+      
+      feedbackBox.innerText = "✅ Stok Verisi Okundu";
+    } else {
+      // Düz metin ise
+      document.getElementById("marka").innerText = decodedText;
+      document.getElementById("renk").innerText = "Düz Barkod";
+      document.getElementById("beden").innerText = "-";
+      document.getElementById("raf").innerText = "-";
+      document.getElementById("stok").innerText = "-";
+      
+      feedbackBox.innerText = "ℹ️ Düz Metin Okundu";
+    }
+    
+    feedbackBox.className = "status-ok";
+    document.getElementById("urun").style.display = "block";
+    
+    // Sürekli ötmemesi için taramayı duraklatabilirsin (isteğe bağlı)
+    // html5QrCode.pause(); 
 
-function hataGoster(mesaj) {
-  document.getElementById("urun").style.display = "none";
-  document.getElementById("feedback").innerText = mesaj;
-  document.getElementById("feedback").style.color = "red";
+  } catch (e) {
+    feedbackBox.innerText = "❌ Okuma Hatası: Geçersiz Format";
+    feedbackBox.className = "status-err";
+  }
 }
 </script>
 
