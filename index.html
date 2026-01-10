@@ -1,144 +1,94 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Depo Stok Takip Sistemi</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <style>
-        :root { --primary: #2563eb; --danger: #dc2626; --bg: #f8fafc; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
-        
-        #reader { width: 100%; max-width: 400px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        
-        #urun { 
-            display: none; width: 100%; max-width: 380px; background: white; 
-            margin-top: 20px; padding: 20px; border-radius: 12px; 
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); 
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Depo QR Okuyucu</title>
 
-        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
-        .info-row b { color: #64748b; }
+<script src="https://unpkg.com/html5-qrcode"></script>
 
-        .counter-group { display: flex; align-items: center; justify-content: center; margin-top: 20px; gap: 20px; }
-        button { 
-            padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer;
-            font-weight: bold; transition: all 0.2s;
-        }
-        .btn-qty { background: #e2e8f0; font-size: 20px; width: 50px; }
-        .btn-order { background: var(--primary); color: white; width: 100%; margin-top: 15px; font-size: 16px; }
-        .btn-order:active { transform: scale(0.98); }
-        
-        #adet { font-size: 24px; font-weight: bold; min-width: 30px; text-align: center; }
-        .status-msg { color: var(--danger); font-weight: bold; margin-top: 10px; text-align: center; }
-    </style>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f8fafc;
+  padding: 15px;
+  text-align: center;
+}
+
+#reader {
+  max-width: 360px;
+  margin: auto;
+}
+
+#urun {
+  display: none;
+  background: #fff;
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,.1);
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.row b {
+  color: #555;
+}
+</style>
 </head>
 <body>
 
-    <h2 style="color: #1e293b;">📦 Depo Terminali</h2>
+<h2>📦 Depo QR Okuyucu</h2>
 
-    <div id="reader"></div>
-    <div id="feedback" class="status-msg"></div>
+<div id="reader"></div>
+<div id="feedback" style="color:red; margin-top:10px;"></div>
 
-    <div id="urun">
-        <div class="info-row"><b>Marka:</b> <span id="marka"></span></div>
-        <div class="info-row"><b>Renk:</b> <span id="renk"></span></div>
-        <div class="info-row"><b>Beden:</b> <span id="beden"></span></div>
-        <div class="info-row"><b>Raf Konumu:</b> <span id="raf" style="color:var(--primary); font-weight:bold;"></span></div>
-        <div class="info-row"><b>Güncel Stok:</b> <span id="stok"></span></div>
-
-        <div class="counter-group">
-            <button class="btn-qty" onclick="azalt()">-</button>
-            <span id="adet">1</span>
-            <button class="btn-qty" onclick="arttir()">+</button>
-        </div>
-
-        <button class="btn-order" onclick="siparisEkle()">SİPARİŞİ ONAYLA</button>
-    </div>
+<div id="urun">
+  <div class="row"><b>Marka</b><span id="marka"></span></div>
+  <div class="row"><b>Renk</b><span id="renk"></span></div>
+  <div class="row"><b>Beden</b><span id="beden"></span></div>
+  <div class="row"><b>Raf</b><span id="raf"></span></div>
+  <div class="row"><b>Stok</b><span id="stok"></span></div>
+</div>
 
 <script>
-// GENİŞLETİLMİŞ ÖRNEK VERİ (Gerçek projede API'den gelmeli)
-const depo = {
-    "1001-BLK-M-A5": { marka: "X Marka", renk: "Siyah", beden: "M", raf: "A5", stok: 120 },
-    "1002-BLU-L-B1": { marka: "Y Marka", renk: "Mavi", beden: "L", raf: "B1", stok: 45 }
-};
-
-let secilenKod = "";
-let adet = 1;
-
-// QR Tarayıcı Başlatma
 const html5QrCode = new Html5Qrcode("reader");
-const config = { fps: 15, qrbox: { width: 200, height: 200 } };
 
-html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+html5QrCode.start(
+  { facingMode: "environment" },
+  { fps: 10, qrbox: 220 },
+  onScanSuccess
+);
 
 function onScanSuccess(decodedText) {
-    if (!depo[decodedText]) {
-        document.getElementById("feedback").innerText = "❌ Ürün bulunamadı!";
-        return;
-    }
+  let urun;
 
-    // Başarılı tarama
-    document.getElementById("feedback").innerText = "";
-    secilenKod = decodedText;
-    const urun = depo[decodedText];
-    adet = 1; // Her yeni okumada adedi sıfırla
+  try {
+    urun = JSON.parse(decodedText);
+  } catch (e) {
+    document.getElementById("feedback").innerText =
+      "❌ Bu QR stok etiketi değil!";
+    return;
+  }
 
-    // UI Güncelleme
-    document.getElementById("marka").innerText = urun.marka;
-    document.getElementById("renk").innerText = urun.renk;
-    document.getElementById("beden").innerText = urun.beden;
-    document.getElementById("raf").innerText = urun.raf;
-    document.getElementById("stok").innerText = urun.stok;
-    document.getElementById("adet").innerText = adet;
+  document.getElementById("feedback").innerText = "";
 
-    document.getElementById("urun").style.display = "block";
-    
-    // Titreşim (Mobil desteği için)
-    if(navigator.vibrate) navigator.vibrate(100);
-}
+  document.getElementById("marka").innerText = urun.marka || "-";
+  document.getElementById("renk").innerText = urun.renk || "-";
+  document.getElementById("beden").innerText = urun.beden || "-";
+  document.getElementById("raf").innerText = urun.raf || "-";
+  document.getElementById("stok").innerText = urun.stok || "-";
 
-function azalt() {
-    if (adet > 1) { adet--; adetGuncelle(); }
-}
+  document.getElementById("urun").style.display = "block";
 
-function arttir() {
-    if (adet < depo[secilenKod].stok) {
-        adet++; adetGuncelle();
-    } else {
-        alert("Maksimum stok miktarına ulaştınız!");
-    }
-}
-
-function adetGuncelle() {
-    document.getElementById("adet").innerText = adet;
-}
-
-async function siparisEkle() {
-    const veri = {
-        sku: secilenKod,
-        miktar: adet,
-        islem: "siparis_hazirla",
-        tarih: new Date().toISOString()
-    };
-
-    console.log("Gönderilecek Veri:", veri);
-
-    // NODEMCU / API ENTEGRASYONU (Örnek Taslak)
-    /*
-    try {
-        const response = await fetch('http://NODEMCU_IP_ADRESI/siparis', {
-            method: 'POST',
-            body: JSON.stringify(veri)
-        });
-        alert("Sipariş başarıyla gönderildi!");
-    } catch (err) {
-        alert("Bağlantı hatası: " + err.message);
-    }
-    */
-
-    alert(`✅ ONAYLANDI\nÜrün: ${secilenKod}\nAdet: ${adet}`);
+  if (navigator.vibrate) navigator.vibrate(100);
 }
 </script>
+
 </body>
 </html>
