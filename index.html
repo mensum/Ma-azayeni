@@ -39,6 +39,11 @@ body {
 .row b {
   color: #555;
 }
+
+#feedback {
+  margin-top: 10px;
+  font-weight: bold;
+}
 </style>
 </head>
 <body>
@@ -46,7 +51,7 @@ body {
 <h2>📦 Depo QR Okuyucu</h2>
 
 <div id="reader"></div>
-<div id="feedback" style="color:red; margin-top:10px;"></div>
+<div id="feedback"></div>
 
 <div id="urun">
   <div class="row"><b>Marka</b><span id="marka"></span></div>
@@ -66,27 +71,48 @@ html5QrCode.start(
 );
 
 function onScanSuccess(decodedText) {
+  console.log("QR OKUNAN VERİ:", decodedText);
+
   let urun;
 
-  try {
-    urun = JSON.parse(decodedText);
-  } catch (e) {
-    document.getElementById("feedback").innerText =
-      "❌ Bu QR stok etiketi değil!";
+  // 🔹 JSON mu kontrol et
+  if (decodedText.trim().startsWith("{")) {
+    try {
+      urun = JSON.parse(decodedText);
+    } catch (e) {
+      hataGoster("❌ QR bozuk (JSON okunamadı)");
+      return;
+    }
+  } else {
+    hataGoster("❌ Bu QR stok etiketi değil");
     return;
   }
 
-  document.getElementById("feedback").innerText = "";
+  // 🔹 Gerekli alanlar var mı?
+  if (!urun.marka || !urun.renk || !urun.raf) {
+    hataGoster("❌ QR eksik veri içeriyor");
+    return;
+  }
 
-  document.getElementById("marka").innerText = urun.marka || "-";
-  document.getElementById("renk").innerText = urun.renk || "-";
+  // 🔹 Ekrana bas
+  document.getElementById("feedback").innerText = "";
+  document.getElementById("feedback").style.color = "green";
+
+  document.getElementById("marka").innerText = urun.marka;
+  document.getElementById("renk").innerText = urun.renk;
   document.getElementById("beden").innerText = urun.beden || "-";
-  document.getElementById("raf").innerText = urun.raf || "-";
-  document.getElementById("stok").innerText = urun.stok || "-";
+  document.getElementById("raf").innerText = urun.raf;
+  document.getElementById("stok").innerText = urun.stok ?? "-";
 
   document.getElementById("urun").style.display = "block";
 
   if (navigator.vibrate) navigator.vibrate(100);
+}
+
+function hataGoster(mesaj) {
+  document.getElementById("urun").style.display = "none";
+  document.getElementById("feedback").innerText = mesaj;
+  document.getElementById("feedback").style.color = "red";
 }
 </script>
 
