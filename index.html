@@ -38,13 +38,14 @@
         <div class="islem">
             <label><b>Düşürülecek Adet:</b></label>
             <input type="number" id="siparisAdet" value="1" min="1">
-            <button class="btn-gonder" onclick="siparisOnayla()">SİPARİŞİ TAMAMLA & HAFIZAYA KAYDET</button>
+            <button class="btn-gonder" id="onayBtn" onclick="siparisOnayla()">SİPARİŞİ TAMAMLA & HAFIZAYA KAYDET</button>
         </div>
     </div>
 
 <script>
 let okunanUrun = null;
 const nodeMcuIP = "http://192.168.1.XXX"; 
+const html5QrCode = new Html5Qrcode("reader");
 
 // Hafızadan stok okuma
 function getHafiza(kod) {
@@ -59,6 +60,11 @@ function setHafiza(kod, veri) {
     localStorage.setItem("depo_stok_v6", JSON.stringify(depo));
 }
 
+function kameraBaslat() {
+    html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 280 }, onScanSuccess)
+    .catch(err => console.error("Kamera başlatılamadı", err));
+}
+
 function onScanSuccess(decodedText) {
     try {
         let parsed = {};
@@ -71,39 +77,41 @@ function onScanSuccess(decodedText) {
             if(k === 'S') parsed.stok = v;
         });
 
-        // KRİTİK NOKTA: Hafızada bu ürün kodu var mı kontrol et?
         let hafizadakiUrun = getHafiza(parsed.kod);
 
         if (hafizadakiUrun) {
-            // Ürün zaten sistemde kayıtlı, HAFIZADAKİ STOK geçerlidir.
             okunanUrun = hafizadakiUrun;
         } else {
-            // Ürün ilk kez taratılıyor, QR'daki stoğu sisteme İLK KEZ kaydet.
             setHafiza(parsed.kod, parsed);
             okunanUrun = parsed;
         }
 
-        // Ekranı doldur
         document.getElementById("pMarka").innerText = okunanUrun.marka;
         document.getElementById("pRenk").innerText = okunanUrun.renk;
         document.getElementById("pRaf").innerText = okunanUrun.raf;
         document.getElementById("pStok").innerText = okunanUrun.stok + " ADET";
 
         document.getElementById("siparis-paneli").style.display = "block";
-        html5QrCode.stop();
+        html5QrCode.stop(); // Okuma başarılı olunca kamerayı durdur
     } catch (e) {
         console.log("Tarama hatası...");
     }
 }
 
 function siparisOnayla() {
-    const adet = parseInt(document.getElementById("siparisAdet").value);
+    const adetInput = document.getElementById("siparisAdet");
+    const adet = parseInt(adetInput.value);
     const guncelMiktar = parseInt(okunanUrun.stok);
+    const btn = document.getElementById("onayBtn");
 
     if (adet > guncelMiktar) {
         alert("Hata: Stokta yeterli ürün yok!");
         return;
     }
+
+    // Butonu geçici olarak devre dışı bırak (çift tıklamayı önlemek için)
+    btn.disabled = true;
+    btn.innerText = "GÖNDERİLİYOR...";
 
     // 1. Stok Düş ve Hafızayı Güncelle
     okunanUrun.stok = guncelMiktar - adet;
@@ -112,17 +120,32 @@ function siparisOnayla() {
     // 2. NodeMCU'ya komut gönder
     fetch(`${nodeMcuIP}/tetikle?raf=${okunanUrun.raf}&adet=${adet}`, { mode: 'no-cors' })
     .then(() => {
-        alert("Sipariş Tamamlandı! Kalan Stok: " + okunanUrun.stok);
-        location.reload();
+        alert("Başarılı! Kalan Stok: " + okunanUrun.stok);
+        yeniOkumayaHazirla();
     })
     .catch(() => {
-        alert("Stok düşüldü ancak NodeMCU bağlantısı başarısız!");
-        location.reload();
+        alert("Stok güncellendi fakat NodeMCU'ya ulaşılamadı!");
+        yeniOkumayaHazirla();
     });
 }
 
-const html5QrCode = new Html5Qrcode("reader");
-html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 280 }, onScanSuccess);
+function yeniOkumayaHazirla() {
+    // Paneli gizle
+    document.getElementById("siparis-paneli").style.display = "none";
+    // Butonu eski haline getir
+    const btn = document.getElementById("onayBtn");
+    btn.disabled = false;
+    btn.innerText = "SİPARİŞİ TAMAMLA & HAFIZAYA KAYDET";
+    // Adet kutusunu sıfırla
+    document.getElementById("siparisAdet").value = 1;
+    // Kamerayı tekrar başlat
+    setTimeout(() => {
+        kameraBaslat();
+    }, 500);
+}
+
+// İlk açılışta kamerayı başlat
+kameraBaslat();
 </script>
 </body>
 </html>
