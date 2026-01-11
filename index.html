@@ -3,31 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hızlı ve Titreşimli Tarayıcı</title>
+    <title>Sesli ve Hızlı Stok Tarayıcı</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #eceff1; padding: 10px; text-align: center; margin: 0; }
-        #reader { 
-            max-width: 500px; 
-            margin: auto; 
-            border-radius: 20px; 
-            border: 6px solid #27ae60; 
-            overflow: hidden; 
-            background: black;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-        }
-        #siparis-paneli { 
-            display: none; 
-            background: white; 
-            max-width: 420px; 
-            margin: -60px auto 20px; 
-            padding: 25px; 
-            border-radius: 25px; 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5); 
-            text-align: left; 
-            position: relative; 
-            z-index: 100; 
-        }
+        #reader { max-width: 500px; margin: auto; border-radius: 20px; border: 6px solid #27ae60; overflow: hidden; background: black; box-shadow: 0 15px 35px rgba(0,0,0,0.4); }
+        #siparis-paneli { display: none; background: white; max-width: 420px; margin: -60px auto 20px; padding: 25px; border-radius: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); text-align: left; position: relative; z-index: 100; }
         .label { color: #7f8c8d; font-size: 0.85em; font-weight: bold; }
         .val { font-size: 1.3em; font-weight: bold; color: #2c3e50; margin-bottom: 12px; display: block; }
         .stok-vurgu { color: #e74c3c; font-size: 1.6em; border-left: 6px solid #e74c3c; padding-left: 12px; }
@@ -36,20 +17,16 @@
         .btn-gonder { background: #27ae60; color: white; border: none; padding: 20px; width: 100%; border-radius: 15px; font-weight: bold; margin-top: 15px; cursor: pointer; font-size: 1.2em; }
     </style>
 </head>
-<body>
-
-    <h2 style="color: #34495e; margin-bottom: 15px;">🔍 Hızlı QR Tarayıcı</h2>
+<body onclick="sesiHazirla()"> <h2 style="color: #34495e; margin-bottom: 15px;">🔍 Akıllı Barkod Tarayıcı</h2>
     <div id="reader"></div>
 
     <div id="siparis-paneli">
         <span class="label">ÜRÜN:</span>
         <span class="val" id="pMarka">-</span>
-        
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <div><span class="label">RAF:</span><span id="pRaf" class="val" style="color:#e67e22">-</span></div>
             <div><span class="label">SİSTEM STOK:</span><span id="pStok" class="val stok-vurgu">-</span></div>
         </div>
-
         <div class="islem">
             <input type="number" id="siparisAdet" value="1" min="1">
             <button class="btn-gonder" id="onayBtn" onclick="siparisOnayla()">ONAYLA & DEVAM ET</button>
@@ -58,8 +35,19 @@
 
 <script>
 let okunanUrun = null;
-const nodeMcuIP = "http://192.168.1.XXX"; 
+const nodeMcuIP = "http://192.168.1.XXX"; // Buraya kendi NodeMCU IP'ni yaz!
 const html5QrCode = new Html5Qrcode("reader");
+
+// Kısa "Ding" sesi yüklemesi
+const dingSesi = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+
+// Tarayıcıların ses engeline takılmamak için ilk dokunuşta sesi "uyandırır"
+function sesiHazirla() {
+    dingSesi.play().then(() => {
+        dingSesi.pause();
+        dingSesi.currentTime = 0;
+    }).catch(e => {});
+}
 
 function getHafiza(kod) {
     let depo = JSON.parse(localStorage.getItem("depo_stok_v6") || "{}");
@@ -73,10 +61,11 @@ function setHafiza(kod, veri) {
 }
 
 function onScanSuccess(decodedText) {
-    // 📳 Titreşim Bildirimi (Okunduğu an 200ms titrer)
-    if (navigator.vibrate) {
-        navigator.vibrate(200);
-    }
+    // 🔔 Ses Çal
+    dingSesi.play();
+    
+    // 📳 Titreşim Dene
+    if (navigator.vibrate) navigator.vibrate(150);
 
     html5QrCode.pause(); 
 
@@ -137,17 +126,12 @@ function islemBitir() {
     }, 200); 
 }
 
-// Yüksek Hassasiyetli Kamera Ayarları
 html5QrCode.start(
     { facingMode: "environment" }, 
     {
-        fps: 30, // Tarama hızı
+        fps: 30,
         qrbox: { width: 250, height: 250 },
-        videoConstraints: {
-            focusMode: "continuous", // Otomatik odaklama
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-        }
+        videoConstraints: { focusMode: "continuous", width: { ideal: 1280 }, height: { ideal: 720 } }
     },
     onScanSuccess
 ).catch(err => alert("Hata: " + err));
