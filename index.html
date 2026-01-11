@@ -3,132 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sipariş ve Otomasyon Paneli</title>
+    <title>Raf Tarayıcı ve Kontrol Paneli</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eceff1; padding: 15px; text-align: center; }
-        #reader { max-width: 400px; margin: 0 auto; border-radius: 15px; border: 4px solid #27ae60; overflow: hidden; }
-        
-        #siparis-ekrani { 
-            display: none; background: white; max-width: 400px; margin: 20px auto; 
-            padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: left; 
-        }
-
-        .etiket { color: #7f8c8d; font-size: 0.9em; font-weight: bold; text-transform: uppercase; }
-        .veri { color: #2c3e50; font-size: 1.3em; font-weight: bold; margin-bottom: 15px; display: block; }
-        
-        .adet-secimi { background: #f8f9fa; padding: 15px; border-radius: 12px; border: 2px solid #dee2e6; margin-top: 15px; }
-        input[type="number"] { 
-            width: 100%; padding: 15px; font-size: 24px; font-weight: bold; text-align: center;
-            border: 2px solid #27ae60; border-radius: 10px; margin: 10px 0;
-        }
-
-        .btn-siparis { 
-            background: #27ae60; color: white; border: none; padding: 18px; 
-            width: 100%; border-radius: 12px; font-size: 1.2em; font-weight: bold; cursor: pointer;
-            box-shadow: 0 4px 0 #1e8449;
-        }
-        .btn-siparis:active { transform: translateY(3px); box-shadow: none; }
-        
-        #mesaj { margin-top: 15px; padding: 12px; border-radius: 8px; display: none; font-weight: bold; }
-        .bekle { background: #fff3cd; color: #856404; }
-        .basari { background: #d4edda; color: #155724; }
+        body { font-family: 'Segoe UI', sans-serif; background: #eceff1; padding: 15px; text-align: center; }
+        #reader { max-width: 450px; margin: auto; border-radius: 15px; border: 5px solid #27ae60; overflow: hidden; }
+        #siparis-paneli { display: none; background: white; max-width: 400px; margin: 20px auto; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); text-align: left; }
+        .label { color: #7f8c8d; font-size: 0.9em; font-weight: bold; }
+        .val { font-size: 1.4em; font-weight: bold; color: #2c3e50; margin-bottom: 15px; display: block; }
+        .islem { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px solid #ddd; }
+        input[type="number"] { width: 100%; padding: 15px; font-size: 22px; border-radius: 10px; border: 2px solid #27ae60; text-align: center; margin: 10px 0; }
+        .btn-gonder { background: #27ae60; color: white; border: none; padding: 18px; width: 100%; border-radius: 12px; font-weight: bold; font-size: 1.2em; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<h2 style="color: #2c3e50;">📦 Ürün Dağıtım Paneli</h2>
+<h2 style="color:#2c3e50">📦 Raf Sipariş Sistemi</h2>
 <div id="reader"></div>
 
-<div id="siparis-ekrani">
-    <span class="etiket">Ürün Adı:</span>
-    <span id="resMarka" class="veri">-</span>
-
-    <span class="etiket">Raf Konumu:</span>
-    <span id="resRaf" class="veri" style="color: #e67e22;">-</span>
-
-    <span class="etiket">Mevcut Stok:</span>
-    <span id="resStok" class="veri">-</span>
-
-    <div class="adet-secimi">
-        <label>Düşürülecek Adet:</label>
-        <input type="number" id="adet" value="1" min="1">
-        <button class="btn-siparis" onclick="siparisTamamla()">SİPARİŞİ TAMAMLA & ÜRÜNÜ VER</button>
-    </div>
+<div id="siparis-paneli">
+    <span class="label">ÜRÜN:</span>
+    <span id="pMarka" class="val">-</span>
     
-    <div id="mesaj"></div>
+    <span class="label">RAF:</span>
+    <span id="pRaf" class="val" style="color:orange">-</span>
+    
+    <span class="label">STOK:</span>
+    <span id="pStok" class="val">-</span>
+
+    <div class="islem">
+        <label><b>Kaç Adet Düşecek?</b></label>
+        <input type="number" id="adet" value="1" min="1">
+        <button class="btn-gonder" onclick="siparisOnayla()">SİPARİŞİ TAMAMLA</button>
+    </div>
 </div>
 
 <script>
-let okunanUrun = null;
-const nodeMcuIP = "http://192.168.1.XXX"; // Burayı NodeMCU IP'si ile değiştir
+let okunanData = null;
+const nodeMcuIP = "http://192.168.1.XXX"; // NodeMCU IP'sini buraya gir
 
-// QR Kodunu Yakalama Ayarları (Yüksek Hassasiyet)
 function onScanSuccess(decodedText) {
     try {
-        let data = {};
-        // Yıldızlı format çözücü (*)
+        let parsed = {};
+        // Yıldızlı formatı parçala: K:..*M:..*C:..*R:..*S:..
         const parcalar = decodedText.split('*');
         parcalar.forEach(p => {
-            const [key, val] = p.split(':');
-            if(key === 'KOD') data.kod = val;
-            if(key === 'MARKA') data.marka = val;
-            if(key === 'RAF') data.raf = val;
-            if(key === 'STOK') data.stok = val;
+            const [anahtar, deger] = p.split(':');
+            if(anahtar === 'K') parsed.kod = deger;
+            if(anahtar === 'M') parsed.marka = deger;
+            if(anahtar === 'R') parsed.raf = deger;
+            if(anahtar === 'S') parsed.stok = deger;
         });
 
-        if(!data.raf) throw new Error();
+        if(!parsed.raf) throw new Error("Hatalı QR");
 
-        okunanUrun = data;
+        okunanData = parsed;
+        document.getElementById("pMarka").innerText = parsed.marka;
+        document.getElementById("pRaf").innerText = parsed.raf;
+        document.getElementById("pStok").innerText = parsed.stok;
 
-        // Ekranı doldur
-        document.getElementById("resMarka").innerText = data.marka;
-        document.getElementById("resRaf").innerText = "RAF " + data.raf;
-        document.getElementById("resStok").innerText = data.stok + " Adet";
-        
-        // Paneli göster, tarayıcıyı durdur
-        document.getElementById("siparis-ekrani").style.display = "block";
-        html5QrCode.stop();
-
+        document.getElementById("siparis-paneli").style.display = "block";
+        html5QrCode.stop(); // Okuma başarılıysa kamerayı durdur
     } catch (e) {
-        // Hata durumunda sessizce devam et veya uyar
-        console.log("Geçersiz QR");
+        console.log("Tarama devam ediyor...");
     }
 }
 
-function siparisTamamla() {
+function siparisOnayla() {
     const adet = document.getElementById("adet").value;
-    const raf = okunanUrun.raf;
-    const msg = document.getElementById("mesaj");
+    const raf = okunanData.raf;
 
-    if (adet < 1) return alert("Lütfen adet seçin!");
+    alert("Mekanizma Tetiklendi: Raf " + raf + ", Adet " + adet);
 
-    msg.innerText = "⏳ Raf " + raf + " tetikleniyor (" + adet + " adet)...";
-    msg.className = "bekle";
-    msg.style.display = "block";
-
-    // NodeMCU'ya komut gönder (Örn: /tetikle?raf=A1&adet=3)
+    // NodeMCU'ya istek gönder
     fetch(`${nodeMcuIP}/tetikle?raf=${raf}&adet=${adet}`, { mode: 'no-cors' })
     .then(() => {
-        msg.innerText = "✅ İŞLEM BAŞARILI: Ürünler Bırakıldı.";
-        msg.className = "basari";
-        
-        // 3 saniye sonra yeni tarama için sayfayı yenile
-        setTimeout(() => location.reload(), 3000);
+        alert("Ürünler başarıyla bırakıldı.");
+        location.reload();
     })
-    .catch(err => {
-        alert("Bağlantı Hatası: NodeMCU'ya ulaşılamadı!");
-        msg.style.display = "none";
-    });
+    .catch(() => alert("Bağlantı hatası: NodeMCU bulunamadı!"));
 }
 
-// Kamerayı Başlat (Daha hızlı tarama için fps artırıldı)
 const html5QrCode = new Html5Qrcode("reader");
-html5QrCode.start(
-    { facingMode: "environment" }, 
-    { fps: 20, qrbox: { width: 280, height: 280 } }, 
-    onScanSuccess
-);
+// QRbox boyutunu artırarak büyük QR'ları daha iyi odaklamasını sağladık
+html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 300 }, onScanSuccess);
 </script>
 </body>
 </html>
