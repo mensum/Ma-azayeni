@@ -3,30 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hızlı Stok Tarayıcı</title>
+    <title>Kesintisiz Stok Tarayıcı</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #eceff1; padding: 15px; text-align: center; margin: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #eceff1; padding: 10px; text-align: center; margin: 0; }
         #reader { max-width: 450px; margin: auto; border-radius: 15px; border: 4px solid #27ae60; overflow: hidden; background: black; }
-        #siparis-paneli { display: none; background: white; max-width: 400px; margin: -50px auto 20px; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: left; position: relative; z-index: 10; }
+        #siparis-paneli { display: none; background: white; max-width: 400px; margin: -40px auto 20px; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: left; position: relative; z-index: 100; }
         .label { color: #7f8c8d; font-size: 0.8em; font-weight: bold; }
         .val { font-size: 1.2em; font-weight: bold; color: #2c3e50; margin-bottom: 10px; display: block; }
         .stok-vurgu { color: #e74c3c; font-size: 1.5em; border-left: 5px solid #e74c3c; padding-left: 10px; }
         .islem { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-top: 10px; border: 1px solid #ddd; }
         input[type="number"] { width: 100%; padding: 12px; font-size: 20px; border-radius: 8px; border: 2px solid #27ae60; text-align: center; box-sizing: border-box; }
-        .btn-gonder { background: #27ae60; color: white; border: none; padding: 18px; width: 100%; border-radius: 12px; font-weight: bold; margin-top: 10px; cursor: pointer; font-size: 1.1em; }
-        /* Tarama aktifken ekranın hafif kararması için */
-        .scanning-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); display:none; }
+        .btn-gonder { background: #27ae60; color: white; border: none; padding: 18px; width: 100%; border-radius: 12px; font-weight: bold; margin-top: 10px; cursor: pointer; font-size: 1.1em; width: 100%; }
     </style>
 </head>
 <body>
 
-    <h2 style="font-size: 1.2em; color: #34495e;">📦 Hızlı Raf Kontrolü</h2>
-    <div id="reader" style="position: relative;"></div>
+    <h2 style="font-size: 1.1em; color: #34495e;">📦 Kesintisiz Raf Kontrolü</h2>
+    <div id="reader"></div>
 
     <div id="siparis-paneli">
-        <span class="label">ÜRÜN & RENK:</span>
-        <span class="val"><span id="pMarka">-</span> | <span id="pRenk" style="color:#2980b9;">-</span></span>
+        <span class="label">ÜRÜN:</span>
+        <span class="val" id="pMarka">-</span>
         
         <div style="display: flex; justify-content: space-between;">
             <div><span class="label">RAF:</span><span id="pRaf" class="val" style="color:orange">-</span></div>
@@ -34,14 +32,14 @@
         </div>
 
         <div class="islem">
+            <label class="label">Düşürülecek Adet:</label>
             <input type="number" id="siparisAdet" value="1" min="1">
-            <button class="btn-gonder" id="onayBtn" onclick="siparisOnayla()">ONAYLA & SONRAKİNE GEÇ</button>
+            <button class="btn-gonder" id="onayBtn" onclick="siparisOnayla()">ONAYLA & TARAMAYA DÖN</button>
         </div>
     </div>
 
 <script>
 let okunanUrun = null;
-let isProcessing = false; // Kilitleme mekanizması
 const nodeMcuIP = "http://192.168.1.XXX"; 
 const html5QrCode = new Html5Qrcode("reader");
 
@@ -57,8 +55,8 @@ function setHafiza(kod, veri) {
 }
 
 function onScanSuccess(decodedText) {
-    // Eğer bir işlem yapılıyorsa yeni taramayı görmezden gel
-    if (isProcessing) return;
+    // 1. Taramayı anında duraklat (Kamera kapanmaz, görüntü donar veya durur)
+    html5QrCode.pause();
 
     try {
         let parsed = {};
@@ -71,20 +69,19 @@ function onScanSuccess(decodedText) {
             if(k === 'S') parsed.stok = v;
         });
 
-        isProcessing = true; // Yeni taramaları kilitle
-        
         let hafizadakiUrun = getHafiza(parsed.kod);
         okunanUrun = hafizadakiUrun ? hafizadakiUrun : parsed;
         if (!hafizadakiUrun) setHafiza(parsed.kod, parsed);
 
-        document.getElementById("pMarka").innerText = okunanUrun.marka;
-        document.getElementById("pRenk").innerText = okunanUrun.renk;
+        document.getElementById("pMarka").innerText = okunanUrun.marka + " (" + (okunanUrun.renk || "-") + ")";
         document.getElementById("pRaf").innerText = okunanUrun.raf;
         document.getElementById("pStok").innerText = okunanUrun.stok;
 
         document.getElementById("siparis-paneli").style.display = "block";
-        // Kamerayı durdurmuyoruz, sadece görsel olarak odağı panele veriyoruz
-    } catch (e) { console.log("Hatalı QR"); }
+    } catch (e) {
+        console.log("Hata:", e);
+        html5QrCode.resume(); // Hata varsa taramaya devam et
+    }
 }
 
 function siparisOnayla() {
@@ -98,40 +95,41 @@ function siparisOnayla() {
     }
 
     btn.disabled = true;
-    btn.innerText = "İŞLENİYOR...";
+    btn.innerText = "GÖNDERİLİYOR...";
 
     okunanUrun.stok = guncelMiktar - adet;
     setHafiza(okunanUrun.kod, okunanUrun);
 
-    // NodeMCU tetikleme
+    // NodeMCU İsteği
     fetch(`${nodeMcuIP}/tetikle?raf=${okunanUrun.raf}&adet=${adet}`, { mode: 'no-cors' })
     .then(() => {
-        finishAction();
+        islemBitir();
     })
     .catch(() => {
-        alert("Hata: NodeMCU'ya ulaşılamadı ama stok düşüldü.");
-        finishAction();
+        alert("NodeMCU Bağlantı Hatası! (Stok güncellendi)");
+        islemBitir();
     });
 }
 
-function finishAction() {
+function islemBitir() {
+    // Paneli gizle
     document.getElementById("siparis-paneli").style.display = "none";
     document.getElementById("siparisAdet").value = 1;
     document.getElementById("onayBtn").disabled = false;
-    document.getElementById("onayBtn").innerText = "ONAYLA & SONRAKİNE GEÇ";
-    
-    // Kilidi hemen aç, kamera zaten çalışıyor olduğu için anında yeni QR bekler
+    document.getElementById("onayBtn").innerText = "ONAYLA & TARAMAYA DÖN";
+
+    // 2. Taramayı devam ettir (Kamera zaten açıktı, hemen taramaya başlar)
     setTimeout(() => {
-        isProcessing = false;
-    }, 300); 
+        html5QrCode.resume();
+    }, 500); 
 }
 
-// Kamerayı en başta bir kez başlat ve açık bırak
+// Kamerayı başlat
 html5QrCode.start(
     { facingMode: "environment" }, 
-    { fps: 25, qrbox: 250 }, 
+    { fps: 20, qrbox: 250 }, 
     onScanSuccess
-);
+).catch(err => alert("Kamera hatası: " + err));
 </script>
 </body>
 </html>
