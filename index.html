@@ -3,109 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Depo Otomasyon Pro - V4</title>
+    <title>Raf Otomasyon Tarayıcı</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; text-align: center; padding: 15px; color: #333; }
-        #reader { max-width: 400px; margin: 20px auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15); background: white; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; text-align: center; padding: 15px; }
+        #reader { max-width: 450px; margin: auto; border-radius: 15px; overflow: hidden; }
         #urun-paneli { display: none; background: white; max-width: 400px; margin: 20px auto; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: left; }
-        .baslik { font-size: 1.4em; font-weight: bold; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 15px; }
-        .detay { margin: 10px 0; font-size: 1.1em; display: flex; justify-content: space-between; }
-        .detay b { color: #7f8c8d; }
-        .islem-alani { background: #ecf0f1; padding: 15px; border-radius: 10px; margin-top: 20px; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; color: #2c3e50; }
-        input[type="number"] { width: 100%; padding: 12px; font-size: 18px; border: 2px solid #bdc3c7; border-radius: 8px; margin-bottom: 15px; box-sizing: border-box; text-align: center; }
-        .btn-onay { background: #27ae60; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-size: 1.1em; font-weight: bold; cursor: pointer; }
-        #durum-mesaji { margin-top: 15px; font-weight: bold; border-radius: 5px; padding: 10px; display: none; }
+        .baslik { font-size: 1.5em; font-weight: bold; border-bottom: 3px solid #27ae60; padding-bottom: 10px; margin-bottom: 15px; }
+        .detay { margin: 8px 0; font-size: 1.2em; display: flex; justify-content: space-between; }
+        .btn-onay { background: #27ae60; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1.1em; }
+        #durum-mesaji { margin-top: 15px; padding: 10px; border-radius: 5px; display: none; font-weight: bold; }
         .basari { background: #d4edda; color: #155724; }
     </style>
 </head>
 <body>
 
-<h2>📦 Raf Otomasyon Sistemi</h2>
-<p>Sadeleştirilmiş Dev QR Kodlarını Taratın</p>
-
+<h2>📦 Raf Kontrol Sistemi</h2>
 <div id="reader"></div>
 
 <div id="urun-paneli">
-    <div class="baslik" id="pMarka">Ürün Adı</div>
-    <div class="detay"><b>Ürün Kodu:</b> <span id="pKod">-</span></div>
+    <div class="baslik" id="pMarka">Ürün</div>
+    <div class="detay"><b>Kod:</b> <span id="pKod">-</span></div>
     <div class="detay"><b>Renk:</b> <span id="pRenk">-</span></div>
-    <div class="detay"><b>Raf Konumu:</b> <span id="pRaf" style="color:#e67e22; font-weight:bold;">-</span></div>
-    <div class="detay"><b>Güncel Stok:</b> <span id="pStok">-</span></div>
+    <div class="detay"><b>Raf:</b> <span id="pRaf" style="color:orange">-</span></div>
+    <div class="detay"><b>Stok:</b> <span id="pStok">-</span></div>
 
-    <div class="islem-alani">
-        <label>Kaç Adet Düşürülecek?</label>
-        <input type="number" id="siparisAdet" value="1" min="1">
-        <button class="btn-onay" onclick="siparisOnayla()">SİPARİŞİ TAMAMLA & ÇIKART</button>
-        <button onclick="location.reload()" style="background:none; border:none; color:gray; cursor:pointer; width:100%; margin-top:10px;">İptal Et</button>
+    <div style="background:#eee; padding:15px; border-radius:10px; margin-top:15px;">
+        <label><b>Düşürülecek Adet:</b></label>
+        <input type="number" id="siparisAdet" value="1" min="1" style="width:100%; padding:10px; margin:10px 0; font-size:18px;">
+        <button class="btn-onay" onclick="siparisOnayla()">SİPARİŞİ TAMAMLA</button>
     </div>
-    
     <div id="durum-mesaji"></div>
 </div>
 
 <script>
 let okunanVeri = null;
-const nodeMcuIP = "http://192.168.1.XXX"; // Buraya NodeMCU IP'nizi yazın
+const nodeMcuIP = "http://192.168.1.XXX"; // Kendi IP'ni buraya yaz!
 
 function getLocalStok(kod) {
-    let depo = JSON.parse(localStorage.getItem("depo_v4") || "{}");
+    let depo = JSON.parse(localStorage.getItem("depo_final") || "{}");
     return depo[kod];
 }
 
 function setLocalStok(kod, veri) {
-    let depo = JSON.parse(localStorage.getItem("depo_v4") || "{}");
+    let depo = JSON.parse(localStorage.getItem("depo_final") || "{}");
     depo[kod] = veri;
-    localStorage.setItem("depo_v4", JSON.stringify(depo));
-}
-
-// YENİ: Sadeleştirilmiş Metni Çözen Fonksiyon
-function parseSadeQR(text) {
-    // Örn: ID:101|R:A1|S:50|M:Elma|C:Kirmizi
-    const data = {};
-    const parts = text.split('|');
-    parts.forEach(part => {
-        const [key, value] = part.split(':');
-        if(key === 'ID') data.kod = value;
-        if(key === 'R')  data.raf = value;
-        if(key === 'S')  data.stok = value;
-        if(key === 'M')  data.marka = value;
-        if(key === 'C')  data.renk = value;
-    });
-    return data;
+    localStorage.setItem("depo_final", JSON.stringify(depo));
 }
 
 function onScanSuccess(decodedText) {
     try {
-        let data;
-        // Eğer QR JSON ise (eski sistem)
-        if (decodedText.startsWith('{')) {
-            data = JSON.parse(decodedText);
+        let data = {};
+        // Yıldızlı formatı ayıkla
+        if (decodedText.includes('*')) {
+            decodedText.split('*').forEach(p => {
+                const [k, v] = p.split(':');
+                if(k === 'KOD')   data.kod = v;
+                if(k === 'MARKA') data.marka = v;
+                if(k === 'RENK')  data.renk = v;
+                if(k === 'RAF')   data.raf = v;
+                if(k === 'STOK')  data.stok = v;
+            });
         } else {
-            // Eğer QR Sade Metin ise (Yeni sistem: ID:|R:|S:...)
-            data = parseSadeQR(decodedText);
+            data = JSON.parse(decodedText);
         }
 
-        if(!data.kod) throw new Error("Gecersiz Veri");
-
-        let mevcut = getLocalStok(data.kod);
-        if (!mevcut) {
-            setLocalStok(data.kod, data);
-            mevcut = data;
-        }
-
+        let mevcut = getLocalStok(data.kod) || data;
         okunanVeri = mevcut;
-        document.getElementById("pMarka").innerText = okunanVeri.marka || "Bilinmiyor";
+
+        document.getElementById("pMarka").innerText = okunanVeri.marka;
         document.getElementById("pKod").innerText = okunanVeri.kod;
-        document.getElementById("pRenk").innerText = okunanVeri.renk || "-";
+        document.getElementById("pRenk").innerText = okunanVeri.renk;
         document.getElementById("pRaf").innerText = okunanVeri.raf;
         document.getElementById("pStok").innerText = okunanVeri.stok;
 
         document.getElementById("urun-paneli").style.display = "block";
         html5QrCode.stop();
-
     } catch (e) {
-        alert("Hata: QR Kod formatı anlaşılamadı!");
+        alert("QR Okuma Hatası! Lütfen yeni etiket oluşturucuyu kullanın.");
     }
 }
 
@@ -113,31 +88,26 @@ function siparisOnayla() {
     const adet = parseInt(document.getElementById("siparisAdet").value);
     const guncelStok = parseInt(okunanVeri.stok);
 
-    if (adet > guncelStok) {
-        alert("Yetersiz Stok!");
-        return;
-    }
+    if (adet > guncelStok) { alert("Yetersiz Stok!"); return; }
 
-    const mesaj = document.getElementById("durum-mesaji");
-    mesaj.style.display = "block";
-    mesaj.innerText = "⏳ Komut gönderiliyor...";
+    const msg = document.getElementById("durum-mesaji");
+    msg.style.display = "block";
+    msg.innerText = "⏳ Mekanizma çalışıyor...";
 
-    // NodeMCU'ya komut: /tetikle?raf=A1&adet=3
     fetch(`${nodeMcuIP}/tetikle?raf=${okunanVeri.raf}&adet=${adet}`, { mode: 'no-cors' })
     .then(() => {
         okunanVeri.stok = guncelStok - adet;
         setLocalStok(okunanVeri.kod, okunanVeri);
-        
         document.getElementById("pStok").innerText = okunanVeri.stok;
-        mesaj.innerText = `✅ İşlem Tamam! ${okunanVeri.raf} aktif edildi.`;
-        mesaj.className = "basari";
-        setTimeout(() => location.reload(), 2500);
+        msg.innerText = `✅ Başarılı! ${okunanVeri.raf} aktif.`;
+        msg.className = "basari";
+        setTimeout(() => location.reload(), 2000);
     })
     .catch(() => alert("NodeMCU Bağlantı Hatası!"));
 }
 
 const html5QrCode = new Html5Qrcode("reader");
-html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 280 }, onScanSuccess);
+html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 280 }, onScanSuccess);
 </script>
 </body>
 </html>
