@@ -1,152 +1,148 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Depo QR Okuyucu Pro</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Depo Otomasyon Pro</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; text-align: center; padding: 15px; color: #333; }
+        #reader { max-width: 400px; margin: 20px auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15); background: white; }
+        
+        #urun-paneli { 
+            display: none; background: white; max-width: 400px; margin: 20px auto; 
+            padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: left; 
+        }
 
-<script src="https://unpkg.com/html5-qrcode"></script>
+        .baslik { font-size: 1.4em; font-weight: bold; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 15px; }
+        .detay { margin: 10px 0; font-size: 1.1em; display: flex; justify-content: space-between; }
+        .detay b { color: #7f8c8d; }
 
-<style>
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: #f4f7f6;
-  padding: 15px;
-  text-align: center;
-  color: #333;
-}
+        .islem-alani { background: #ecf0f1; padding: 15px; border-radius: 10px; margin-top: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #2c3e50; }
+        
+        input[type="number"] { 
+            width: 100%; padding: 12px; font-size: 18px; border: 2px solid #bdc3c7; 
+            border-radius: 8px; margin-bottom: 15px; box-sizing: border-box; text-align: center;
+        }
 
-#reader {
-  max-width: 400px;
-  margin: 20px auto;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  background: white;
-}
+        .btn-onay { 
+            background: #27ae60; color: white; border: none; padding: 15px; 
+            width: 100%; border-radius: 8px; font-size: 1.1em; font-weight: bold; cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-onay:hover { background: #219150; }
+        .btn-iptal { background: none; border: none; color: #e74c3c; width: 100%; margin-top: 10px; cursor: pointer; }
 
-#urun {
-  display: none;
-  background: #fff;
-  margin: 20px auto;
-  max-width: 400px;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
-  text-align: left;
-}
-
-.row {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 1px solid #eee;
-}
-
-.row:last-child { border-bottom: none; }
-
-.row b { color: #555; font-size: 0.85em; text-transform: uppercase; }
-.row span { color: #2c3e50; font-weight: 700; }
-
-#feedback {
-  margin-top: 15px;
-  padding: 10px;
-  border-radius: 8px;
-  font-weight: bold;
-}
-
-.status-ok { color: #27ae60; background: #eafaf1; }
-.status-err { color: #c0392b; background: #fdf2f2; }
-
-.btn-reset {
-  width: 100%;
-  margin-top: 20px;
-  padding: 12px;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-.btn-reset:hover { background: #2980b9; }
-</style>
+        #durum-mesaji { margin-top: 15px; font-weight: bold; border-radius: 5px; padding: 10px; display: none; }
+        .basari { background: #d4edda; color: #155724; }
+    </style>
 </head>
 <body>
 
-<h2>📦 Depo Stok Kontrol</h2>
-<p style="color: #7f8c8d;">QR Kodunu veya Barkodu Taratın</p>
+<h2>📦 Raf Otomasyon Sistemi</h2>
+<p>Ürünü düşürmek için QR kodu taratın</p>
 
 <div id="reader"></div>
-<div id="feedback"></div>
 
-<div id="urun">
-  <div class="row"><b>Ürün / Marka</b><span id="marka"></span></div>
-  <div class="row"><b>Renk</b><span id="renk"></span></div>
-  <div class="row"><b>Beden</b><span id="beden"></span></div>
-  <div class="row"><b>Raf Konumu</b><span id="raf" style="color:#e67e22;"></span></div>
-  <div class="row"><b>Stok Adedi</b><span id="stok"></span></div>
-  
-  <button class="btn-reset" onclick="location.reload()">Yeni Tarama Yap</button>
+<div id="urun-paneli">
+    <div class="baslik" id="pMarka">Ürün Adı</div>
+    <div class="detay"><b>Ürün Kodu:</b> <span id="pKod">-</span></div>
+    <div class="detay"><b>Raf Konumu:</b> <span id="pRaf" style="color:#e67e22; font-weight:bold;">-</span></div>
+    <div class="detay"><b>Güncel Stok:</b> <span id="pStok">-</span></div>
+
+    <div class="islem-alani">
+        <label>Kaç Adet Düşürülecek?</label>
+        <input type="number" id="siparisAdet" value="1" min="1">
+        <button class="btn-onay" onclick="siparisOnayla()">SİPARİŞİ TAMAMLA & ÇIKART</button>
+        <button class="btn-iptal" onclick="location.reload()">İptal Et</button>
+    </div>
+    
+    <div id="durum-mesaji"></div>
 </div>
 
 <script>
-const html5QrCode = new Html5Qrcode("reader");
-const config = { fps: 15, qrbox: { width: 250, height: 250 } };
+let okunanVeri = null;
+const nodeMcuIP = "http://192.168.1.XXX"; // Buraya NodeMCU IP adresini yazın
 
-// Kamera Başlatma
-html5QrCode.start(
-  { facingMode: "environment" }, 
-  config,
-  onScanSuccess
-).catch(err => {
-  document.getElementById("feedback").innerText = "Kamera Hatası: " + err;
-  document.getElementById("feedback").className = "status-err";
-});
-
-function onScanSuccess(decodedText) {
-  if (navigator.vibrate) navigator.vibrate(100);
-  
-  const feedbackBox = document.getElementById("feedback");
-  const urunPanel = document.getElementById("urun");
-  
-  try {
-    // QR içeriği JSON formatında mı?
-    if (decodedText.startsWith("{")) {
-      const data = JSON.parse(decodedText);
-      
-      // JSON içindeki 'raf' anahtarını veya benzerlerini kontrol et
-      document.getElementById("marka").innerText = data.marka || data.urun || "Tanımsız";
-      document.getElementById("renk").innerText = data.renk || "-";
-      document.getElementById("beden").innerText = data.beden || "-";
-      document.getElementById("raf").innerText = data.raf || data.konum || "Raf Bilgisi Yok";
-      document.getElementById("stok").innerText = data.stok || "0";
-      
-      feedbackBox.innerText = "✅ Veri Başarıyla Alındı";
-    } else {
-      // Düz barkod/metin ise raf bilgisini boş bırakma, "Düz Barkod" olarak belirt
-      document.getElementById("marka").innerText = decodedText;
-      document.getElementById("renk").innerText = "-";
-      document.getElementById("beden").innerText = "-";
-      document.getElementById("raf").innerText = "Bilinmiyor (Düz Barkod)";
-      document.getElementById("stok").innerText = "-";
-      
-      feedbackBox.innerText = "ℹ️ Düz Barkod Okundu";
-    }
-    
-    feedbackBox.className = "status-ok";
-    urunPanel.style.display = "block";
-    
-    // Okuma başarılı olduktan sonra kamerayı durdur (isteğe bağlı)
-    html5QrCode.stop(); 
-
-  } catch (e) {
-    feedbackBox.innerText = "❌ Hata: QR Kod formatı hatalı!";
-    feedbackBox.className = "status-err";
-    console.error(e);
-  }
+// 1. Tarayıcı Hafızasından Stok Kontrolü
+function getLocalStok(kod) {
+    let depo = JSON.parse(localStorage.getItem("depo_v3") || "{}");
+    return depo[kod];
 }
+
+function setLocalStok(kod, veri) {
+    let depo = JSON.parse(localStorage.getItem("depo_v3") || "{}");
+    depo[kod] = veri;
+    localStorage.setItem("depo_v3", JSON.stringify(depo));
+}
+
+// 2. QR Tarama Başarılı Olduğunda
+function onScanSuccess(decodedText) {
+    try {
+        const data = JSON.parse(decodedText);
+        let mevcut = getLocalStok(data.kod);
+
+        if (!mevcut) {
+            setLocalStok(data.kod, data);
+            mevcut = data;
+        }
+
+        okunanVeri = mevcut;
+
+        // Arayüzü doldur
+        document.getElementById("pMarka").innerText = okunanVeri.marka;
+        document.getElementById("pKod").innerText = okunanVeri.kod;
+        document.getElementById("pRaf").innerText = okunanVeri.raf;
+        document.getElementById("pStok").innerText = okunanVeri.stok;
+
+        // Paneli Göster, Kamerayı Durdur
+        document.getElementById("urun-paneli").style.display = "block";
+        html5QrCode.stop();
+
+    } catch (e) {
+        alert("Hata: Geçersiz QR Kod Formatı!");
+    }
+}
+
+// 3. Siparişi Tamamla ve NodeMCU'yu Tetikle
+function siparisOnayla() {
+    const adet = parseInt(document.getElementById("siparisAdet").value);
+    const guncelStok = parseInt(okunanVeri.stok);
+
+    if (adet > guncelStok) {
+        alert("Hata: Stokta yeterli ürün yok!");
+        return;
+    }
+
+    const mesaj = document.getElementById("durum-mesaji");
+    mesaj.style.display = "block";
+    mesaj.innerText = "⏳ İşlem yapılıyor, lütfen bekleyin...";
+    mesaj.className = "";
+
+    // NodeMCU'ya istek gönder: /tetikle?raf=A1&adet=3
+    fetch(`${nodeMcuIP}/tetikle?raf=${okunanVeri.raf}&adet=${adet}`, { mode: 'no-cors' })
+    .then(() => {
+        // Stok düşür
+        okunanVeri.stok = guncelStok - adet;
+        setLocalStok(okunanVeri.kod, okunanVeri);
+        
+        // Arayüzü Güncelle
+        document.getElementById("pStok").innerText = okunanVeri.stok;
+        mesaj.innerText = `✅ Başarılı! ${okunanVeri.raf} rafından ${adet} adet ürün bırakıldı.`;
+        mesaj.className = "basari";
+
+        // 3 saniye sonra sayfayı yenile (yeni tarama için)
+        setTimeout(() => location.reload(), 3000);
+    })
+    .catch(err => {
+        alert("NodeMCU'ya bağlanılamadı! Lütfen Wi-Fi bağlantısını kontrol edin.");
+    });
+}
+
+// Kamerayı Başlat
+const html5QrCode = new Html5Qrcode("reader");
+html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess);
 </script>
 
 </body>
