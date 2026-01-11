@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HD Kesintisiz Stok Tarayıcı</title>
+    <title>Hızlı ve Titreşimli Tarayıcı</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #eceff1; padding: 10px; text-align: center; margin: 0; }
@@ -33,13 +33,12 @@
         .stok-vurgu { color: #e74c3c; font-size: 1.6em; border-left: 6px solid #e74c3c; padding-left: 12px; }
         .islem { background: #f8f9fa; padding: 15px; border-radius: 15px; margin-top: 15px; border: 1px solid #ddd; }
         input[type="number"] { width: 100%; padding: 15px; font-size: 24px; border-radius: 10px; border: 2px solid #27ae60; text-align: center; box-sizing: border-box; font-weight: bold; }
-        .btn-gonder { background: #27ae60; color: white; border: none; padding: 20px; width: 100%; border-radius: 15px; font-weight: bold; margin-top: 15px; cursor: pointer; font-size: 1.2em; transition: 0.3s; }
-        .btn-gonder:active { transform: scale(0.95); background: #1e8449; }
+        .btn-gonder { background: #27ae60; color: white; border: none; padding: 20px; width: 100%; border-radius: 15px; font-weight: bold; margin-top: 15px; cursor: pointer; font-size: 1.2em; }
     </style>
 </head>
 <body>
 
-    <h2 style="color: #34495e; margin-bottom: 15px;">🔍 HD Stok Tarayıcı</h2>
+    <h2 style="color: #34495e; margin-bottom: 15px;">🔍 Hızlı QR Tarayıcı</h2>
     <div id="reader"></div>
 
     <div id="siparis-paneli">
@@ -52,7 +51,6 @@
         </div>
 
         <div class="islem">
-            <label class="label">Düşürülecek Adet:</label>
             <input type="number" id="siparisAdet" value="1" min="1">
             <button class="btn-gonder" id="onayBtn" onclick="siparisOnayla()">ONAYLA & DEVAM ET</button>
         </div>
@@ -60,7 +58,7 @@
 
 <script>
 let okunanUrun = null;
-const nodeMcuIP = "http://192.168.1.XXX"; // Burayı kendi IP'nle değiştirmeyi unutma!
+const nodeMcuIP = "http://192.168.1.XXX"; 
 const html5QrCode = new Html5Qrcode("reader");
 
 function getHafiza(kod) {
@@ -74,9 +72,13 @@ function setHafiza(kod, veri) {
     localStorage.setItem("depo_stok_v6", JSON.stringify(depo));
 }
 
-// QR Başarı Fonksiyonu
 function onScanSuccess(decodedText) {
-    html5QrCode.pause(); // Görüntüyü dondurur (kamera kapanmaz)
+    // 📳 Titreşim Bildirimi (Okunduğu an 200ms titrer)
+    if (navigator.vibrate) {
+        navigator.vibrate(200);
+    }
+
+    html5QrCode.pause(); 
 
     try {
         let parsed = {};
@@ -99,7 +101,6 @@ function onScanSuccess(decodedText) {
 
         document.getElementById("siparis-paneli").style.display = "block";
     } catch (e) {
-        console.error("Format Hatası");
         html5QrCode.resume();
     }
 }
@@ -122,7 +123,7 @@ function siparisOnayla() {
 
     fetch(`${nodeMcuIP}/tetikle?raf=${okunanUrun.raf}&adet=${adet}`, { mode: 'no-cors' })
     .then(() => { islemBitir(); })
-    .catch(() => { alert("NodeMCU Hatası! Stok düşüldü."); islemBitir(); });
+    .catch(() => { alert("NodeMCU Hatası!"); islemBitir(); });
 }
 
 function islemBitir() {
@@ -132,33 +133,24 @@ function islemBitir() {
     document.getElementById("onayBtn").innerText = "ONAYLA & DEVAM ET";
 
     setTimeout(() => {
-        html5QrCode.resume(); // Taramayı anında devam ettirir
-    }, 300); 
+        html5QrCode.resume(); 
+    }, 200); 
 }
 
-// KAMERA AYARLARI (Yüksek Kalite İçin)
-const config = { 
-    fps: 30, // Daha akıcı görüntü
-    qrbox: { width: 280, height: 280 }, // Tarama kutusu
-    aspectRatio: 1.0 // Kare görüntü
-};
-
-// HD Çözünürlük ve Odaklama Zorlaması
+// Yüksek Hassasiyetli Kamera Ayarları
 html5QrCode.start(
-    { facingMode: "environment" }, // Arka kamera
+    { facingMode: "environment" }, 
     {
-        ...config,
+        fps: 30, // Tarama hızı
+        qrbox: { width: 250, height: 250 },
         videoConstraints: {
-            width: { min: 640, ideal: 1280, max: 1920 },
-            height: { min: 480, ideal: 720, max: 1080 },
-            focusMode: "continuous", // Sürekli odaklama
-            facingMode: "environment"
+            focusMode: "continuous", // Otomatik odaklama
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
         }
     },
     onScanSuccess
-).catch(err => {
-    alert("Kamera hatası! Lütfen HTTPS kullanın veya izinleri kontrol edin.");
-});
+).catch(err => alert("Hata: " + err));
 </script>
 </body>
 </html>
