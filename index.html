@@ -3,25 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stok ve Sipariş Takip Sistemi</title>
+    <title>Kalıcı Stok Yönetimi</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: #eceff1; padding: 10px; text-align: center; }
-        #reader { max-width: 450px; margin: 10px auto; border-radius: 15px; border: 4px solid #27ae60; background: white; overflow: hidden; min-height: 250px; }
-        #siparis-paneli { display: none; background: white; max-width: 400px; margin: 20px auto; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align: left; }
-        .label { color: #7f8c8d; font-size: 0.85em; font-weight: bold; text-transform: uppercase; }
-        .val { font-size: 1.25em; font-weight: bold; color: #2c3e50; margin-bottom: 10px; display: block; }
-        .stok-vurgu { color: #e74c3c; border-left: 4px solid #e74c3c; padding-left: 10px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #eceff1; padding: 15px; text-align: center; }
+        #reader { max-width: 450px; margin: auto; border-radius: 15px; border: 4px solid #27ae60; overflow: hidden; background: white; }
+        #siparis-paneli { display: none; background: white; max-width: 400px; margin: 20px auto; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align: left; }
+        .label { color: #7f8c8d; font-size: 0.9em; font-weight: bold; }
+        .val { font-size: 1.3em; font-weight: bold; color: #2c3e50; margin-bottom: 12px; display: block; }
+        .stok-vurgu { color: #e74c3c; font-size: 1.6em; border-left: 5px solid #e74c3c; padding-left: 10px; }
         .islem { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px solid #ddd; }
-        input[type="number"] { width: 100%; padding: 12px; font-size: 20px; border-radius: 8px; border: 2px solid #27ae60; text-align: center; box-sizing: border-box; }
-        .btn-gonder { background: #27ae60; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-weight: bold; margin-top: 15px; cursor: pointer; font-size: 1.1em; }
-        #error-msg { color: red; margin: 10px; font-weight: bold; }
+        input[type="number"] { width: 100%; padding: 12px; font-size: 20px; border-radius: 8px; border: 2px solid #27ae60; text-align: center; }
+        .btn-gonder { background: #27ae60; color: white; border: none; padding: 18px; width: 100%; border-radius: 12px; font-weight: bold; margin-top: 15px; cursor: pointer; font-size: 1.1em; }
     </style>
 </head>
 <body>
 
-    <h2>📦 Ürün Çıkış Sistemi</h2>
-    <div id="error-msg"></div>
+    <h2>📦 Akıllı Stok Takip Sistemi</h2>
     <div id="reader"></div>
 
     <div id="siparis-paneli">
@@ -32,83 +30,72 @@
         <span id="pRenk" class="val" style="color:#2980b9;">-</span>
         
         <span class="label">RAF:</span>
-        <span id="pRaf" class="val" style="color:#d35400;">-</span>
+        <span id="pRaf" class="val" style="color:orange">-</span>
         
-        <span class="label">GÜNCEL STOK:</span>
+        <span class="label">SİSTEMDEKİ GÜNCEL STOK:</span>
         <span id="pStok" class="val stok-vurgu">-</span>
 
         <div class="islem">
             <label><b>Düşürülecek Adet:</b></label>
             <input type="number" id="siparisAdet" value="1" min="1">
-            <button class="btn-gonder" onclick="siparisOnayla()">SİPARİŞİ TAMAMLA & STOKTAN DÜŞ</button>
+            <button class="btn-gonder" onclick="siparisOnayla()">SİPARİŞİ TAMAMLA & HAFIZAYA KAYDET</button>
         </div>
     </div>
 
 <script>
 let okunanUrun = null;
-const nodeMcuIP = "http://192.168.1.XXX"; // Lütfen NodeMCU IP'sini buraya yazın
+const nodeMcuIP = "http://192.168.1.XXX"; 
 
-// 1. Stok Yönetimi (localStorage üzerinden kalıcı takip)
-function getStok(kod) {
-    let depo = JSON.parse(localStorage.getItem("depo_stok_v5") || "{}");
+// Hafızadan stok okuma
+function getHafiza(kod) {
+    let depo = JSON.parse(localStorage.getItem("depo_stok_v6") || "{}");
     return depo[kod];
 }
 
-function setStok(kod, veri) {
-    let depo = JSON.parse(localStorage.getItem("depo_stok_v5") || "{}");
+// Hafızaya stok yazma
+function setHafiza(kod, veri) {
+    let depo = JSON.parse(localStorage.getItem("depo_stok_v6") || "{}");
     depo[kod] = veri;
-    localStorage.setItem("depo_stok_v5", JSON.stringify(depo));
+    localStorage.setItem("depo_stok_v6", JSON.stringify(depo));
 }
 
-// 2. QR Çözümleme ve UI Güncelleme
 function onScanSuccess(decodedText) {
     try {
-        console.log("Okunan Veri:", decodedText);
         let parsed = {};
-        
-        // Yıldızlı formatı ayıkla (K:Kod*M:Marka*C:Renk*R:Raf*S:Stok)
-        const parts = decodedText.split('*');
-        parts.forEach(p => {
-            const pair = p.split(':');
-            if(pair[0] === 'K') parsed.kod = pair[1];
-            if(pair[0] === 'M') parsed.marka = pair[1];
-            if(pair[0] === 'C') parsed.renk = pair[1];
-            if(pair[0] === 'R') parsed.raf = pair[1];
-            if(pair[0] === 'S') parsed.stok = pair[1];
+        decodedText.split('*').forEach(p => {
+            const [k, v] = p.split(':');
+            if(k === 'K') parsed.kod = v;
+            if(k === 'M') parsed.marka = v;
+            if(k === 'C') parsed.renk = v;
+            if(k === 'R') parsed.raf = v;
+            if(k === 'S') parsed.stok = v;
         });
 
-        if(!parsed.kod || !parsed.raf) {
-            alert("Hatalı QR Formatı!");
-            return;
+        // KRİTİK NOKTA: Hafızada bu ürün kodu var mı kontrol et?
+        let hafizadakiUrun = getHafiza(parsed.kod);
+
+        if (hafizadakiUrun) {
+            // Ürün zaten sistemde kayıtlı, HAFIZADAKİ STOK geçerlidir.
+            okunanUrun = hafizadakiUrun;
+        } else {
+            // Ürün ilk kez taratılıyor, QR'daki stoğu sisteme İLK KEZ kaydet.
+            setHafiza(parsed.kod, parsed);
+            okunanUrun = parsed;
         }
 
-        // Hafızadaki güncel stoğu al, yoksa QR'daki stoğu kaydet
-        let mevcutHafiza = getStok(parsed.kod);
-        if (!mevcutHafiza) {
-            setStok(parsed.kod, parsed);
-            mevcutHafiza = parsed;
-        }
-
-        okunanUrun = mevcutHafiza;
-
-        // UI Güncelle
+        // Ekranı doldur
         document.getElementById("pMarka").innerText = okunanUrun.marka;
         document.getElementById("pRenk").innerText = okunanUrun.renk;
         document.getElementById("pRaf").innerText = okunanUrun.raf;
         document.getElementById("pStok").innerText = okunanUrun.stok + " ADET";
 
-        // Paneli Göster ve Tarayıcıyı Durdur
         document.getElementById("siparis-paneli").style.display = "block";
-        html5QrCode.stop().then(() => {
-            console.log("Kamera durduruldu.");
-        });
-
+        html5QrCode.stop();
     } catch (e) {
-        console.error("QR İşleme Hatası:", e);
+        console.log("Tarama hatası...");
     }
 }
 
-// 3. Sipariş Onaylama ve Fiziksel Tetikleme
 function siparisOnayla() {
     const adet = parseInt(document.getElementById("siparisAdet").value);
     const guncelMiktar = parseInt(okunanUrun.stok);
@@ -118,33 +105,24 @@ function siparisOnayla() {
         return;
     }
 
-    // Stok düşürme işlemi
+    // 1. Stok Düş ve Hafızayı Güncelle
     okunanUrun.stok = guncelMiktar - adet;
-    setStok(okunanUrun.kod, okunanUrun);
+    setHafiza(okunanUrun.kod, okunanUrun);
 
-    // NodeMCU'ya komut gönder
-    const url = `${nodeMcuIP}/tetikle?raf=${okunanUrun.raf}&adet=${adet}`;
-    
-    fetch(url, { mode: 'no-cors' })
+    // 2. NodeMCU'ya komut gönder
+    fetch(`${nodeMcuIP}/tetikle?raf=${okunanUrun.raf}&adet=${adet}`, { mode: 'no-cors' })
     .then(() => {
-        alert(`BAŞARILI!\nRaf: ${okunanUrun.raf}\nKalan Stok: ${okunanUrun.stok}`);
+        alert("Sipariş Tamamlandı! Kalan Stok: " + okunanUrun.stok);
         location.reload();
     })
-    .catch(err => {
-        alert("UYARI: Stok düşüldü ancak NodeMCU'ya ulaşılamadı. IP adresini kontrol edin!");
+    .catch(() => {
+        alert("Stok düşüldü ancak NodeMCU bağlantısı başarısız!");
         location.reload();
     });
 }
 
-// 4. Kamerayı Başlatma ve Hata Yakalama
 const html5QrCode = new Html5Qrcode("reader");
-const config = { fps: 20, qrbox: { width: 280, height: 280 } };
-
-html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
-.catch(err => {
-    document.getElementById("error-msg").innerText = "Kamera Başlatılamadı: " + err;
-    console.error("Kamera Hatası:", err);
-});
+html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 280 }, onScanSuccess);
 </script>
 </body>
 </html>
