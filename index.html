@@ -3,44 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kesintisiz Stok Tarayıcı</title>
+    <title>HD Kesintisiz Stok Tarayıcı</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #eceff1; padding: 10px; text-align: center; margin: 0; }
-        #reader { max-width: 450px; margin: auto; border-radius: 15px; border: 4px solid #27ae60; overflow: hidden; background: black; }
-        #siparis-paneli { display: none; background: white; max-width: 400px; margin: -40px auto 20px; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: left; position: relative; z-index: 100; }
-        .label { color: #7f8c8d; font-size: 0.8em; font-weight: bold; }
-        .val { font-size: 1.2em; font-weight: bold; color: #2c3e50; margin-bottom: 10px; display: block; }
-        .stok-vurgu { color: #e74c3c; font-size: 1.5em; border-left: 5px solid #e74c3c; padding-left: 10px; }
-        .islem { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-top: 10px; border: 1px solid #ddd; }
-        input[type="number"] { width: 100%; padding: 12px; font-size: 20px; border-radius: 8px; border: 2px solid #27ae60; text-align: center; box-sizing: border-box; }
-        .btn-gonder { background: #27ae60; color: white; border: none; padding: 18px; width: 100%; border-radius: 12px; font-weight: bold; margin-top: 10px; cursor: pointer; font-size: 1.1em; width: 100%; }
+        #reader { 
+            max-width: 500px; 
+            margin: auto; 
+            border-radius: 20px; 
+            border: 6px solid #27ae60; 
+            overflow: hidden; 
+            background: black;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        }
+        #siparis-paneli { 
+            display: none; 
+            background: white; 
+            max-width: 420px; 
+            margin: -60px auto 20px; 
+            padding: 25px; 
+            border-radius: 25px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5); 
+            text-align: left; 
+            position: relative; 
+            z-index: 100; 
+        }
+        .label { color: #7f8c8d; font-size: 0.85em; font-weight: bold; }
+        .val { font-size: 1.3em; font-weight: bold; color: #2c3e50; margin-bottom: 12px; display: block; }
+        .stok-vurgu { color: #e74c3c; font-size: 1.6em; border-left: 6px solid #e74c3c; padding-left: 12px; }
+        .islem { background: #f8f9fa; padding: 15px; border-radius: 15px; margin-top: 15px; border: 1px solid #ddd; }
+        input[type="number"] { width: 100%; padding: 15px; font-size: 24px; border-radius: 10px; border: 2px solid #27ae60; text-align: center; box-sizing: border-box; font-weight: bold; }
+        .btn-gonder { background: #27ae60; color: white; border: none; padding: 20px; width: 100%; border-radius: 15px; font-weight: bold; margin-top: 15px; cursor: pointer; font-size: 1.2em; transition: 0.3s; }
+        .btn-gonder:active { transform: scale(0.95); background: #1e8449; }
     </style>
 </head>
 <body>
 
-    <h2 style="font-size: 1.1em; color: #34495e;">📦 Kesintisiz Raf Kontrolü</h2>
+    <h2 style="color: #34495e; margin-bottom: 15px;">🔍 HD Stok Tarayıcı</h2>
     <div id="reader"></div>
 
     <div id="siparis-paneli">
         <span class="label">ÜRÜN:</span>
         <span class="val" id="pMarka">-</span>
         
-        <div style="display: flex; justify-content: space-between;">
-            <div><span class="label">RAF:</span><span id="pRaf" class="val" style="color:orange">-</span></div>
-            <div><span class="label">GÜNCEL STOK:</span><span id="pStok" class="val stok-vurgu">-</span></div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div><span class="label">RAF:</span><span id="pRaf" class="val" style="color:#e67e22">-</span></div>
+            <div><span class="label">SİSTEM STOK:</span><span id="pStok" class="val stok-vurgu">-</span></div>
         </div>
 
         <div class="islem">
             <label class="label">Düşürülecek Adet:</label>
             <input type="number" id="siparisAdet" value="1" min="1">
-            <button class="btn-gonder" id="onayBtn" onclick="siparisOnayla()">ONAYLA & TARAMAYA DÖN</button>
+            <button class="btn-gonder" id="onayBtn" onclick="siparisOnayla()">ONAYLA & DEVAM ET</button>
         </div>
     </div>
 
 <script>
 let okunanUrun = null;
-const nodeMcuIP = "http://192.168.1.XXX"; 
+const nodeMcuIP = "http://192.168.1.XXX"; // Burayı kendi IP'nle değiştirmeyi unutma!
 const html5QrCode = new Html5Qrcode("reader");
 
 function getHafiza(kod) {
@@ -54,9 +74,9 @@ function setHafiza(kod, veri) {
     localStorage.setItem("depo_stok_v6", JSON.stringify(depo));
 }
 
+// QR Başarı Fonksiyonu
 function onScanSuccess(decodedText) {
-    // 1. Taramayı anında duraklat (Kamera kapanmaz, görüntü donar veya durur)
-    html5QrCode.pause();
+    html5QrCode.pause(); // Görüntüyü dondurur (kamera kapanmaz)
 
     try {
         let parsed = {};
@@ -79,8 +99,8 @@ function onScanSuccess(decodedText) {
 
         document.getElementById("siparis-paneli").style.display = "block";
     } catch (e) {
-        console.log("Hata:", e);
-        html5QrCode.resume(); // Hata varsa taramaya devam et
+        console.error("Format Hatası");
+        html5QrCode.resume();
     }
 }
 
@@ -100,36 +120,45 @@ function siparisOnayla() {
     okunanUrun.stok = guncelMiktar - adet;
     setHafiza(okunanUrun.kod, okunanUrun);
 
-    // NodeMCU İsteği
     fetch(`${nodeMcuIP}/tetikle?raf=${okunanUrun.raf}&adet=${adet}`, { mode: 'no-cors' })
-    .then(() => {
-        islemBitir();
-    })
-    .catch(() => {
-        alert("NodeMCU Bağlantı Hatası! (Stok güncellendi)");
-        islemBitir();
-    });
+    .then(() => { islemBitir(); })
+    .catch(() => { alert("NodeMCU Hatası! Stok düşüldü."); islemBitir(); });
 }
 
 function islemBitir() {
-    // Paneli gizle
     document.getElementById("siparis-paneli").style.display = "none";
     document.getElementById("siparisAdet").value = 1;
     document.getElementById("onayBtn").disabled = false;
-    document.getElementById("onayBtn").innerText = "ONAYLA & TARAMAYA DÖN";
+    document.getElementById("onayBtn").innerText = "ONAYLA & DEVAM ET";
 
-    // 2. Taramayı devam ettir (Kamera zaten açıktı, hemen taramaya başlar)
     setTimeout(() => {
-        html5QrCode.resume();
-    }, 500); 
+        html5QrCode.resume(); // Taramayı anında devam ettirir
+    }, 300); 
 }
 
-// Kamerayı başlat
+// KAMERA AYARLARI (Yüksek Kalite İçin)
+const config = { 
+    fps: 30, // Daha akıcı görüntü
+    qrbox: { width: 280, height: 280 }, // Tarama kutusu
+    aspectRatio: 1.0 // Kare görüntü
+};
+
+// HD Çözünürlük ve Odaklama Zorlaması
 html5QrCode.start(
-    { facingMode: "environment" }, 
-    { fps: 20, qrbox: 250 }, 
+    { facingMode: "environment" }, // Arka kamera
+    {
+        ...config,
+        videoConstraints: {
+            width: { min: 640, ideal: 1280, max: 1920 },
+            height: { min: 480, ideal: 720, max: 1080 },
+            focusMode: "continuous", // Sürekli odaklama
+            facingMode: "environment"
+        }
+    },
     onScanSuccess
-).catch(err => alert("Kamera hatası: " + err));
+).catch(err => {
+    alert("Kamera hatası! Lütfen HTTPS kullanın veya izinleri kontrol edin.");
+});
 </script>
 </body>
 </html>
